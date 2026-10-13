@@ -1,92 +1,90 @@
 <p align="center">
-  <img src="Resources/AppIcon-1024.png" width="128" height="128" alt="Codex Usage Bar icon">
+  <img src="Resources/AppIcon-1024.png" width="128" height="128" alt="Codex Kimi Usage Bar icon">
 </p>
 
-<h1 align="center">Codex Usage Bar</h1>
+<h1 align="center">Codex Kimi Usage Bar</h1>
 
-<p align="center">See your remaining Codex usage in the macOS menu bar and Touch Bar.</p>
+<p align="center">A native macOS menu-bar and Touch Bar utility for Codex and Kimi Code usage.</p>
 
-<p align="center"><a href="README.md">中文</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="CONTRIBUTING.md">Contributing</a></p>
+<p align="center"><a href="README.md">中文</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="docs/ARCHITECTURE.md">Architecture</a> · <a href="docs/PRIVACY.md">Privacy</a></p>
 
 > [!IMPORTANT]
-> This is an unofficial community project. It is not affiliated with, sponsored by, or endorsed by OpenAI. The local Codex app-server interface and persistent Touch Bar behavior may change without notice.
+> This is an unofficial personal-use community project. It is not affiliated with, sponsored by, or endorsed by OpenAI, Kimi, or Moonshot. Local Codex, Kimi Code, and persistent Touch Bar interfaces may change without notice.
+
+## Overview
+
+Codex Kimi Usage Bar brings Codex and Kimi Code usage into one lightweight native macOS utility. It shows five-hour and service-provided period limits, reset times, activity lights, and an optional network-region ring without asking users to copy browser cookies or conversation data.
+
+The app is a single local process with no third-party Swift packages and no background daemon.
 
 ## Features
 
-- Shows five-hour and weekly remaining usage in the menu bar.
-- Uses a native macOS menu for progress, reset times, credits, and resets.
-- Configurable menu bar icon, icon size, and text size.
-- Optional launch at login and automatic refresh every five minutes.
-- Touch Bar progress, percentages, reset times, and manual refresh.
-- Optional automatic Touch Bar presentation while Codex is frontmost.
-- No third-party dependencies and no separate API key.
+- Menu-bar display with the official local Codex and Kimi Code app icons, five-hour remaining percentage, reset time, and activity light.
+- Native expanded menu with progress bars, period limits, credits or reset counts when returned by the service, manual refresh, service links, settings, and quit.
+- Two Touch Bar layouts: compact numbers or dual quota bars. Dual bars support a shared 60–110 pt width; status lights support 6–16.5 pt in compact mode and 6–25 pt in dual-bar mode.
+- Touch Bar service icons restore minimized windows and bring Codex or Kimi Code to the foreground without forcing full screen.
+- Activity lights for working, waiting, idle, failed, and unknown states, including a soft three-second rainbow completion animation.
+- Optional IP-region status ring with a native macOS flag emoji in the center and a colored network ring. The exact public IP is not displayed or persisted.
+- Launch at login, configurable refresh interval, IP-ring switch, layout selector, and Touch Bar recovery action.
+- No third-party runtime dependencies, telemetry, advertising, or analytics SDK.
+
+## Technology and implementation
+
+- Swift 5.10 and Swift Package Manager on macOS 14+.
+- AppKit for `NSStatusItem`, `NSMenu`, `NSWindow`, `NSTouchBar`, and foreground application activation.
+- SwiftUI embedded with `NSHostingView` for the settings page and expanded usage menu.
+- Combine for state propagation and redraw scheduling.
+- Foundation and ephemeral `URLSession` for local process I/O, Kimi Code usage, and region checks.
+- Security Keychain for an optional user-provided Kimi Code API key.
+- ServiceManagement for launch-at-login registration.
+- QuartzCore for quota bars, the network ring, and activity animations.
+- Runtime probing of undocumented AppKit system-modal Touch Bar selectors, with a public-API fallback when unavailable.
+
+### Data sources
+
+Codex usage is read from the locally installed `codex app-server --stdio` process through the read-only `account/rateLimits/read` JSON-RPC request. Kimi Code usage is read from the official coding usage endpoint using a Keychain API key or the local Kimi Code CLI credential. Expired CLI tokens are refreshed under the CLI credential lock to avoid concurrent writes.
+
+Activity monitoring extracts lifecycle markers from locally accessible Codex logs and Kimi `event.session.work_changed` events. It never reads or stores prompt content.
+
+## Privacy
+
+- Codex cookies, access tokens, and conversation content are not stored by this app.
+- Kimi API keys are stored only in the macOS Keychain; CLI credentials remain managed by Kimi Code.
+- The region ring keeps only a two-letter region code for the displayed flag; it does not persist the exact public IP.
+- Preferences are stored in `UserDefaults`.
+- Kimi and region checks use HTTPS; the app uses an ephemeral session without persistent cookies or URL cache.
+
+See [docs/PRIVACY.md](docs/PRIVACY.md).
 
 ## Requirements
 
 - macOS 14.0 or later.
-- Codex desktop installed and signed in, or a compatible `codex` executable in a common installation path.
-- Touch Bar features require a Touch Bar-equipped MacBook Pro. The menu bar works on other Macs.
+- A signed-in Codex desktop client.
+- A signed-in Kimi Code client or a valid Kimi Code API key for Kimi usage.
+- A Touch Bar MacBook Pro for Touch Bar features; the menu bar works on other Macs.
 
-## Install
-
-### GitHub Release
-
-1. Download the latest `Codex-Usage-Bar-v*.zip`.
-2. Extract it and move `Codex Usage Bar.app` to `/Applications`.
-3. If Gatekeeper blocks the first launch, review and allow it in System Settings → Privacy & Security.
-
-Community builds without Developer ID signing and notarization may display additional security warnings. Only run builds you trust.
-
-### Build from source
+## Build
 
 ```bash
-git clone https://github.com/yizhigou/codex-usage-bar.git
-cd CodexUsageBar
+git clone https://github.com/adityajha2005/codex-usage-bar.git
+cd codex-usage-bar
 ./build-app.sh dist
-open "dist/Codex Usage Bar.app"
+open "dist/Codex Kimi Usage Bar.app"
 ```
 
-The default build is universal (`arm64` and `x86_64`). To build only for the current architecture:
+For the local Apple Silicon toolchain:
 
 ```bash
-CODEX_USAGE_ARCHS="$(uname -m)" ./build-app.sh dist
+./build-local.sh /tmp/codex-kimi-build
+"/tmp/codex-kimi-build/Codex Kimi Usage Bar.app/Contents/MacOS/CodexUsageBar" --self-test
 ```
 
-## How it works
+The default release build is universal (`arm64` and `x86_64`). The bundle is ad-hoc signed unless a Developer ID identity is supplied.
 
-The app launches the locally installed:
+## Limitations
 
-```text
-codex app-server --stdio
-```
+The Codex app-server and Kimi Code usage interfaces are client-facing implementation details rather than stable third-party SDKs. Persistent Touch Bar presentation uses undocumented AppKit selectors and is not suitable for Mac App Store distribution. Hardware-level Touch Bar black screens, automatic dimming, and sleep behavior remain controlled by macOS and the hardware.
 
-and sends the read-only `account/rateLimits/read` request. It does not read or store cookies, access tokens, or conversation content, and contains no telemetry or third-party analytics.
+## License
 
-See [docs/PRIVACY.md](docs/PRIVACY.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Touch Bar compatibility
-
-Normal content uses public `NSTouchBar` APIs. Automatic presentation while Codex is frontmost uses undocumented AppKit system-modal selectors after checking for them at runtime. Therefore it cannot be distributed through the Mac App Store and may stop working after a macOS update. The menu bar remains functional when the selector is unavailable.
-
-See [docs/TOUCH_BAR.md](docs/TOUCH_BAR.md).
-
-## Development and release
-
-```bash
-swift build
-./build-app.sh dist
-./scripts/release.sh
-```
-
-The build script uses ad-hoc signing by default. For public Developer ID builds:
-
-```bash
-CODE_SIGN_IDENTITY="Developer ID Application: Example (TEAMID)" \
-  ./scripts/release.sh
-```
-
-Keep certificates, passwords, and notarization credentials out of the repository.
-
-## License and trademarks
-
-Source code and original project assets are available under the [MIT License](LICENSE). See [NOTICE.md](NOTICE.md) for the unofficial-project and trademark notice.
+Code and original project assets are available under the [MIT License](LICENSE). See [NOTICE.md](NOTICE.md) for the unofficial-project and trademark notice.
